@@ -1,33 +1,28 @@
 import os
+import json
 import requests
 from bs4 import BeautifulSoup
 
-CHANNEL = os.environ["TG_CHANNEL"]
+CHANNELS = [c.strip() for c in os.environ["TG_CHANNEL"].split(",") if c.strip()]
 BALE_TOKEN = os.environ["BALE_TOKEN"]
 BALE_CHAT = os.environ["BALE_CHAT_ID"]
-STATE = "last_id.txt"
-
-MEDIA_SELECTORS = (
-    ".tgme_widget_message_photo_wrap, "
-    ".tgme_widget_message_video_player, "
-    ".tgme_widget_message_document_wrap, "
-    ".tgme_widget_message_voice, "
-    ".tgme_widget_message_sticker_wrap, "
-    ".tgme_widget_message_roundvideo_wrap, "
-    ".tgme_widget_message_poll"
-)
+STATE = "state.json"
 
 
-def get_last_id():
+def load_state():
     try:
-        return int(open(STATE).read().strip())
+        return json.load(open(STATE))
     except Exception:
-        return None
+        return {}
 
 
-def fetch_posts():
+def save_state(state):
+    json.dump(state, open(STATE, "w"))
+
+
+def fetch_posts(channel):
     r = requests.get(
-        f"https://t.me/s/{CHANNEL}",
+        f"https://t.me/s/{channel}",
         timeout=30,
         headers={"User-Agent": "Mozilla/5.0"},
     )
@@ -37,9 +32,8 @@ def fetch_posts():
     for m in soup.select(".tgme_widget_message"):
         post_id = int(m["data-post"].split("/")[-1])
         text_el = m.select_one(".tgme_widget_message_text")
-        has_media = m.select_one(MEDIA_SELECTORS)
-        is_text_only = bool(text_el) and not has_media
-        posts.append((post_id, is_text_only, text_el.get_text("\n").strip() if text_el else ""))
+        text = text_el.get_text("\n").strip() if text_el else ""
+        posts.append((post_id, text))
     return sorted(posts)
 
 
@@ -52,38 +46,45 @@ def send_bale(text):
     r.raise_for_status()
 
 
-def main():
-    posts = fetch_posts()
+def process(channel, state, backfill):
+    posts = fetch_posts(channel)
     if not posts:
-        print("No posts found")
+        print(f"[{channel}] no posts found")
         return
-
-    backfill = int(os.environ.get("BACKFILL", "0") or "0")
 
     if backfill > 0:
-        for post_id, is_text_only, text in posts[-backfill:]:
+        for post_id, text in posts[-backfill:]:
             if text:
-                send_bale(text)
-                print(f"Backfill sent {post_id}")
-        open(STATE, "w").write(str(posts[-1][0]))
+                send_bale(f"📢 {channel}\n\n{text}")
+                print(f"[{channel}] backfill sent {post_id}")
+        state[channel] = posts[-1][0]
         return
 
-    last = get_last_id()
-
+    last = state.get(channel)
     if last is None:
-        open(STATE, "w").write(str(posts[-1][0]))
-        print("First run, state initialized")
+        state[channel] = posts[-1][0]
+        print(f"[{channel}] first run, state initialized")
         return
 
-    for post_id, is_text_only, text in posts:
+    for post_id, text in posts:
         if post_id <= last:
             continue
         if text:
-            send_bale(text)
-            print(f"Sent {post_id}")
+            send_bale(f"📢 {channel}\n\n{text}")
+            print(f"[{channel}] sent {post_id}")
         last = post_id
+        state[channel] = last
 
-    open(STATE, "w").write(str(last))
+
+def main():
+    backfill = int(os.environ.get("BACKFILL", "0") or "0")
+    state = load_state()
+    for channel in CHANNELS:
+        try:
+            process(channel, state, backfill)
+        except Exception as e:
+            print(f"[{channel}] error: {e}")
+        save_state(state)
 
 
 if __name__ == "__main__":
