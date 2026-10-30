@@ -69,7 +69,7 @@ def main():
     for post_id, is_text_only, text in posts:
         if post_id <= last:
             continue
-        if is_text_only:
+        if text:
             send_bale(text)
             print(f"Sent {post_id}")
         last = post_id
