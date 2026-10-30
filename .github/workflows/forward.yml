@@ -25,7 +25,7 @@ jobs:
       - name: Restore state
         uses: actions/cache/restore@v4
         with:
-          path: last_id.txt
+          path: state.json
           key: state-${{ github.run_id }}
           restore-keys: state-
 
@@ -39,5 +39,5 @@ jobs:
       - name: Save state
         uses: actions/cache/save@v4
         with:
-          path: last_id.txt
+          path: state.json
           key: state-${{ github.run_id }}
