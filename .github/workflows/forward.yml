@@ -8,6 +8,10 @@ on:
         description: "How many latest posts to send now"
         default: "0"
 
+concurrency:
+  group: forward-news
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -30,6 +34,7 @@ jobs:
           TG_CHANNEL: ${{ secrets.TG_CHANNEL }}
           BALE_TOKEN: ${{ secrets.BALE_TOKEN }}
           BALE_CHAT_ID: ${{ secrets.BALE_CHAT_ID }}
+          BACKFILL: ${{ github.event.inputs.backfill }}
 
       - name: Save state
         uses: actions/cache/save@v4
