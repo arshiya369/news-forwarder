@@ -3,10 +3,10 @@ on:
   schedule:
     - cron: "*/10 * * * *"
   workflow_dispatch:
-
-concurrency:
-  group: forward-news
-  cancel-in-progress: false
+    inputs:
+      backfill:
+        description: "How many latest posts to send now"
+        default: "0"
 
 jobs:
   run:
