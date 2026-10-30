@@ -22,8 +22,9 @@ jobs:
           BALE_TOKEN: ${{ secrets.BALE_TOKEN }}
           BALE_CHAT_ID: ${{ secrets.BALE_CHAT_ID }}
       - name: Save state
+
         run: |
           git config user.name "bot"
           git config user.email "bot@users.noreply.github.com"
           git add last_id.txt
-          git diff --staged --quiet || (git commit -m "update state" && git push)
+          git diff --staged --quiet || (git commit -m "update state" && git pull --rebase -X theirs && git push)
