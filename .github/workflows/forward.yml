@@ -21,10 +21,15 @@ jobs:
           TG_CHANNEL: ${{ secrets.TG_CHANNEL }}
           BALE_TOKEN: ${{ secrets.BALE_TOKEN }}
           BALE_CHAT_ID: ${{ secrets.BALE_CHAT_ID }}
+          
       - name: Save state
-
         run: |
           git config user.name "bot"
           git config user.email "bot@users.noreply.github.com"
           git add last_id.txt
-          git diff --staged --quiet || (git commit -m "update state" && git pull --rebase -X theirs && git push)
+          if ! git diff --staged --quiet; then
+            git commit -m "update state"
+            git fetch origin main
+            git rebase -X theirs origin/main || (git rebase --abort; git reset --hard origin/main; git checkout --theirs . 2>/dev/null; true)
+            git push origin HEAD:main
+          fi
