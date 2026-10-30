@@ -58,9 +58,18 @@ def main():
         print("No posts found")
         return
 
+    backfill = int(os.environ.get("BACKFILL", "0") or "0")
+
+    if backfill > 0:
+        for post_id, is_text_only, text in posts[-backfill:]:
+            if text:
+                send_bale(text)
+                print(f"Backfill sent {post_id}")
+        open(STATE, "w").write(str(posts[-1][0]))
+        return
+
     last = get_last_id()
 
-    # First run: don't spam old posts, just remember the latest one
     if last is None:
         open(STATE, "w").write(str(posts[-1][0]))
         print("First run, state initialized")
